@@ -393,6 +393,10 @@ static std::pair<int, int> GetStartEndTimes(JsonNode& json_obj,
             if(cur_val > ret_times.second) {
                 ret_times.second = cur_val;
             }
+            
+            if(cur_val < ret_times.first) {
+                ret_times.first = cur_val;
+            }
         }
     }
     

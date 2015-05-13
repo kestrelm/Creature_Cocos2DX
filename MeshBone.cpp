@@ -1311,7 +1311,7 @@ meshBoneCacheManager::retrieveValuesAtTime(float time_in,
     int base_time = getIndexByTime((int)floorf(time_in));
     int end_time = getIndexByTime((int)ceilf(time_in));
 
-    float ratio = (time_in - (float)base_time);
+    float ratio = (time_in - (float)floorf(time_in));
 
     if(bone_cache_data_ready.empty()) {
         return;
@@ -1352,7 +1352,7 @@ meshBoneCacheManager::retrieveSingleBoneValueAtTime(const std::string& key_in,
 {
     int base_time = getIndexByTime((int)floorf(time_in));
     int end_time = getIndexByTime((int)ceilf(time_in));
-    float ratio = (time_in - (float)base_time);
+    float ratio = (time_in - (float)floorf(time_in));
     std::pair<glm::vec4, glm::vec4> ret_data;
 
     if(bone_cache_data_ready.empty()) {
@@ -1495,7 +1495,7 @@ void meshDisplacementCacheManager::retrieveValuesAtTime(float time_in,
     int base_time = getIndexByTime((int)floorf(time_in));
     int end_time = getIndexByTime((int)ceilf(time_in));
     
-    float ratio = (time_in - (float)base_time);
+    float ratio = (time_in - (float)floorf(time_in));
     
     if(displacement_cache_data_ready.empty()) {
         return;
@@ -1567,7 +1567,7 @@ meshDisplacementCacheManager::retrieveSingleDisplacementValueAtTime(const std::s
 {
     int base_time = getIndexByTime((int)floorf(time_in));
     int end_time = getIndexByTime((int)ceilf(time_in));
-    float ratio = (time_in - (float)base_time);
+    float ratio = (time_in - (float)floorf(time_in));
     std::pair<glm::vec4, glm::vec4> ret_data;
     
     if(displacement_cache_data_ready.empty()) {
@@ -1629,7 +1629,7 @@ meshDisplacementCacheManager::retrieveSingleDisplacementValueNoRegionAtTime(cons
 {
     int base_time = getIndexByTime((int)floorf(time_in));
     int end_time = getIndexByTime((int)ceilf(time_in));
-    float ratio = (time_in - (float)base_time);
+    float ratio = (time_in - (float)floorf(time_in));
     std::pair<glm::vec4, glm::vec4> ret_data;
     
     if(displacement_cache_data_ready.empty()) {
@@ -1691,7 +1691,7 @@ meshDisplacementCacheManager::retrieveSingleDisplacementValueDirectAtTime(const 
 {
     int base_time = getIndexByTime((int)floorf(time_in));
     int end_time = getIndexByTime((int)ceilf(time_in));
-    float ratio = (time_in - (float)base_time);
+    float ratio = (time_in - (float)floorf(time_in));
     std::pair<glm::vec4, glm::vec4> ret_data;
     
     if(displacement_cache_data_ready.empty()) {
@@ -1911,8 +1911,6 @@ meshUVWarpCacheManager::retrieveSingleValueAtTime(float time_in,
 {
     int base_time = getIndexByTime((int)floorf(time_in));
     int end_time = getIndexByTime((int)ceilf(time_in));
-    
-    float ratio = (time_in - (float)base_time);
     
     if(uv_cache_data_ready.empty()) {
         return;
