@@ -1122,16 +1122,13 @@ namespace CreatureModule {
         // Do posing, decide if we are blending or not
         std::vector<meshRenderRegion *>& cur_regions =
         render_composition->getRegions();
-        std::unordered_map<std::string, meshBone *>& cur_bones =
-        render_composition->getBonesMap();
         
         render_composition->updateAllTransforms(false);
         for(size_t j = 0; j < cur_regions.size(); j++) {
             meshRenderRegion * cur_region = cur_regions[j];
             
             int cur_pt_index = cur_region->getStartPtIndex();
-            cur_region->poseFinalPts(target_pts + (cur_pt_index * 3),
-                                     cur_bones);
+            cur_region->poseFastFinalPts(target_pts + (cur_pt_index * 3));
         }
 
     }

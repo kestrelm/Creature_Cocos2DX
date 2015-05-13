@@ -692,11 +692,35 @@ meshRenderRegion::renameWeightValuesByKey(const std::string& old_key,
 void
 meshRenderRegion::initFastNormalWeightMap(const std::unordered_map<std::string, meshBone *>& bones_map)
 {
+    fast_normal_weight_map.clear();
+    fast_bones_map.clear();
+    reverse_fast_normal_weight_map.clear();
+    
     for(auto& bone_data : bones_map)
     {
         std::vector<float> values = normal_weight_map[bone_data.first];
         fast_normal_weight_map.push_back(values);
+        
+        fast_bones_map.push_back(bone_data.second);
+        
+        if(reverse_fast_normal_weight_map.empty())
+        {
+            reverse_fast_normal_weight_map.resize(values.size());
+        }
     }
+    
+    for(size_t i = 0; i < reverse_fast_normal_weight_map.size(); i++)
+    {
+        std::vector<float> new_values(fast_normal_weight_map.size());
+        for(size_t j = 0; j < fast_normal_weight_map.size(); j++)
+        {
+            new_values[j]  = fast_normal_weight_map[j][i];
+        }
+        
+        reverse_fast_normal_weight_map[i] = new_values;
+    }
+    
+    fast_normal_weight_map.clear();
 }
 
 int meshRenderRegion::getNumPts() const
@@ -983,6 +1007,55 @@ void meshRenderRegion::poseFinalPts(glm::float32 * output_pts,
         write_pt[0] = final_pt.x;
         write_pt[1] = final_pt.y;
         write_pt[2] = final_pt.z;
+        
+        if(use_post_displacements) {
+            write_pt[0] += post_displacements[i].x;
+            write_pt[1] += post_displacements[i].y;
+        }
+        
+        read_pt += 3;
+        write_pt += 3;
+    }
+    
+    // uv warping
+    if(use_uv_warp) {
+        runUvWarp();
+    }
+}
+
+void meshRenderRegion::poseFastFinalPts(glm::float32 * output_pts)
+{
+    glm::float32 * read_pt = getRestPts();
+    glm::float32 * write_pt = output_pts;
+    size_t num_bones = fast_bones_map.size();
+    
+    for(int i = 0; i < getNumPts(); i++) {
+        glm::vec4 cur_rest_pt(read_pt[0], read_pt[1], read_pt[2], 1);
+        
+        if(use_local_displacements) {
+            cur_rest_pt.x += local_displacements[i].x;
+            cur_rest_pt.y += local_displacements[i].y;
+        }
+        
+        glm::mat4 accum_mat(0);
+        dualQuat accum_dq;
+        
+        const auto& weight_map_vals = reverse_fast_normal_weight_map[i];
+        for(size_t j = 0; j < num_bones; j++)
+        {
+            float cur_im_weight_val = weight_map_vals[j];
+            
+            const dualQuat& world_dq = fast_bones_map[j]->getWorldDq();
+            accum_dq.add(world_dq, cur_im_weight_val, cur_im_weight_val);
+        }
+        
+        glm::vec4 final_pt(0);
+        accum_dq.normalize();
+        final_pt = glm::vec4(accum_dq.transform(glm::vec3(cur_rest_pt)), 1);
+        
+        write_pt[0] = final_pt.x;
+        write_pt[1] = final_pt.y;
+        write_pt[2] = 1;
         
         if(use_post_displacements) {
             write_pt[0] += post_displacements[i].x;
