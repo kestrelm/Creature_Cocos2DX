@@ -695,6 +695,8 @@ meshRenderRegion::initFastNormalWeightMap(const std::unordered_map<std::string, 
     fast_normal_weight_map.clear();
     fast_bones_map.clear();
     reverse_fast_normal_weight_map.clear();
+    relevant_bones_indices.clear();
+    fill_dq_array.clear();
     
     for(auto& bone_data : bones_map)
     {
@@ -706,11 +708,15 @@ meshRenderRegion::initFastNormalWeightMap(const std::unordered_map<std::string, 
         if(reverse_fast_normal_weight_map.empty())
         {
             reverse_fast_normal_weight_map.resize(values.size());
+            relevant_bones_indices.resize(values.size());
         }
     }
     
+    fill_dq_array.resize(bones_map.size());
+    
     for(size_t i = 0; i < reverse_fast_normal_weight_map.size(); i++)
     {
+        // reverse normal weight map
         std::vector<float> new_values(fast_normal_weight_map.size());
         for(size_t j = 0; j < fast_normal_weight_map.size(); j++)
         {
@@ -718,6 +724,20 @@ meshRenderRegion::initFastNormalWeightMap(const std::unordered_map<std::string, 
         }
         
         reverse_fast_normal_weight_map[i] = new_values;
+        
+        // relevant bone indices
+        std::vector<int> relevant_array;
+        const float cutoff_val = 0.05f;
+        for(size_t j = 0; j < fast_normal_weight_map.size(); j++)
+        {
+            float sample_val = fast_normal_weight_map[j][i];
+            if(sample_val > cutoff_val)
+            {
+                relevant_array.push_back((int)j);
+            }
+        }
+        
+        relevant_bones_indices[i] = relevant_array;
     }
     
     fast_normal_weight_map.clear();
@@ -1027,8 +1047,14 @@ void meshRenderRegion::poseFastFinalPts(glm::float32 * output_pts)
 {
     glm::float32 * read_pt = getRestPts();
     glm::float32 * write_pt = output_pts;
-    size_t num_bones = fast_bones_map.size();
     
+    // fill up dqs
+    for(size_t i = 0; i < fill_dq_array.size(); i++)
+    {
+        fill_dq_array[i] = fast_bones_map[i]->getWorldDq();
+    }
+    
+    // pose points
     for(int i = 0; i < getNumPts(); i++) {
         glm::vec4 cur_rest_pt(read_pt[0], read_pt[1], read_pt[2], 1);
         
@@ -1041,11 +1067,12 @@ void meshRenderRegion::poseFastFinalPts(glm::float32 * output_pts)
         dualQuat accum_dq;
         
         const auto& weight_map_vals = reverse_fast_normal_weight_map[i];
-        for(size_t j = 0; j < num_bones; j++)
+        const auto& bone_indices = relevant_bones_indices[i];
+        
+        for(auto j : bone_indices)
         {
             float cur_im_weight_val = weight_map_vals[j];
-            
-            const dualQuat& world_dq = fast_bones_map[j]->getWorldDq();
+            const dualQuat& world_dq = fill_dq_array[j];
             accum_dq.add(world_dq, cur_im_weight_val, cur_im_weight_val);
         }
         

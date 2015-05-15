@@ -316,6 +316,8 @@ protected:
     std::vector<std::vector<float> > fast_normal_weight_map;
     std::vector<std::vector<float> > reverse_fast_normal_weight_map;
     std::vector<meshBone *> fast_bones_map;
+    std::vector<std::vector<int> > relevant_bones_indices;
+    std::vector<dualQuat> fill_dq_array;
     std::string main_bone_key;
     meshBone * main_bone;
     bool use_dq;
