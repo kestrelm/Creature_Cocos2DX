@@ -869,20 +869,26 @@ namespace CreatureModule {
         glm::float32 * set_pt = target_pts;
         glm::float32 * floor_pts = cache_pts[cur_floor_time];
         glm::float32 * ceil_pts = cache_pts[cur_ceil_time];
+        float ratio1 = 1.0f - cur_ratio;
+        float ratio2 = cur_ratio;
         
         for(int i = 0; i < num_pts; i++)
         {
-
+#if __APPLE__
+            __builtin_prefetch (&floor_pts[3], 0, 0);
+            __builtin_prefetch (&floor_pts[4], 0, 0);
+            __builtin_prefetch (&ceil_pts[3], 0, 0);
+            __builtin_prefetch (&ceil_pts[4], 0, 0);
+            __builtin_prefetch (&ceil_pts[5], 0, 0);
+#endif
+            set_pt[0] = (ratio1 * floor_pts[0]) + (ratio2 * ceil_pts[0]);
+            set_pt[1] = (ratio1 * floor_pts[1]) + (ratio2 * ceil_pts[1]);
+            set_pt[2] = ceil_pts[2];
             
-            set_pt[0] = ((1.0f - cur_ratio) * floor_pts[0]) + (cur_ratio * ceil_pts[0]);
-            set_pt[1] = ((1.0f - cur_ratio) * floor_pts[1]) + (cur_ratio * ceil_pts[1]);
-            set_pt[2] = ((1.0f - cur_ratio) * floor_pts[2]) + (cur_ratio * ceil_pts[2]);
-
             set_pt += 3;
             floor_pts += 3;
             ceil_pts += 3;
         }
-        
     }
     
     // CreatureManager class
