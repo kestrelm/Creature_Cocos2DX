@@ -1069,6 +1069,8 @@ namespace CreatureModule {
         auto_blend_names[1] = animation_name_in;
         blending_factor = 0;
         
+        active_animation_name = animation_name_in;
+        
         SetBlendingAnimations(auto_blend_names[0], auto_blend_names[1]);
     }
 
