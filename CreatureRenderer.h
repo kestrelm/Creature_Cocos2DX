@@ -59,6 +59,8 @@ namespace CreatureRenderer {
         
         void SetDebugDraw(bool flag_in);
         
+        std::pair<glm::vec2, glm::vec2> GetCharacterBounds();
+        
     protected:
         Renderer(CreatureModule::CreatureManager * manager_in,
                  cocos2d::Texture2D * texture_in);
@@ -72,6 +74,7 @@ namespace CreatureRenderer {
         cocos2d::BlendFunc _blendFunc;
         cocos2d::Texture2D * texture;
         bool debug_draw;
+        cocos2d::Rect character_bounds;
     };
 };
 

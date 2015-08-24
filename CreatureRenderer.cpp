@@ -75,6 +75,10 @@ namespace CreatureRenderer {
     Renderer::update(float delta)
     {
         manager->Update(delta);
+        auto compute_bounds = GetCharacterBounds();
+        character_bounds = cocos2d::Rect(compute_bounds.first.x, compute_bounds.first.y, 
+                                        compute_bounds.second.x - compute_bounds.first.x,
+                                         compute_bounds.second.y - compute_bounds.first.y);
     }
     
     void
@@ -87,6 +91,49 @@ namespace CreatureRenderer {
         renderer->addCommand(&_drawCommand);
     }
     
+    std::pair<glm::vec2, glm::vec2>
+    Renderer::GetCharacterBounds()
+    {
+        auto cur_pts = manager->GetCreature()->GetRenderPts();
+        
+        glm::vec2 min_pt, max_pt;
+        
+        if( manager->GetCreature()->GetTotalNumPoints() > 0)
+        {
+            min_pt.x = cur_pts[0];
+            min_pt.y = cur_pts[1];
+            
+            max_pt = min_pt;
+        }
+        
+        for(int i = 0; i <  manager->GetCreature()->GetTotalNumPoints() * 3; i+= 3)
+        {
+            glm::float32 cur_x = cur_pts[i];
+            glm::float32 cur_y = cur_pts[i + 1];
+            
+            if(cur_x < min_pt.x)
+            {
+                min_pt.x = cur_x;
+            }
+            if(cur_y < min_pt.y)
+            {
+                min_pt.y = cur_y;
+            }
+            
+            if(cur_x > max_pt.x)
+            {
+                max_pt.x = cur_x;
+            }
+            if(cur_y > max_pt.y)
+            {
+                max_pt.y = cur_y;
+            }
+
+        }
+        
+        return std::make_pair(min_pt, max_pt);
+    }
+    
     void
     Renderer::SetDebugDraw(bool flag_in)
     {
@@ -96,6 +143,26 @@ namespace CreatureRenderer {
     void
     Renderer::doDraw(const cocos2d::Mat4& transform, uint32_t transformFlags)
     {
+        cocos2d::Director* director = cocos2d::Director::getInstance();
+        cocos2d::Size frameSize = director->getOpenGLView()->getFrameSize();
+        cocos2d::Rect curScreenRect(0, 0, frameSize.width, frameSize.height);
+        
+        cocos2d::Vec3 character_min_pt(character_bounds.getMinX(), character_bounds.getMinY(), 0);
+        cocos2d::Vec3 character_max_pt(character_bounds.getMaxX(), character_bounds.getMaxY(), 0);
+        //cocos2d::Vec3 character_min_world_pt, character_max_world_pt;
+        transform.transformPoint(&character_min_pt);
+        transform.transformPoint(&character_max_pt);
+        
+        cocos2d::Rect character_world_rect(character_min_pt.x, character_min_pt.y,
+                                           character_max_pt.x - character_min_pt.x,
+                                           character_max_pt.y - character_min_pt.y);
+        
+        if(curScreenRect.intersectsRect(character_world_rect) == false)
+        {
+            // not on screen, skip drawing
+            return;
+        }
+        
         getGLProgramState()->apply(transform);
         cocos2d::GL::bindTexture2D(texture->getName());
         
@@ -138,7 +205,6 @@ namespace CreatureRenderer {
         
         if(debug_draw)
         {
-            cocos2d::Director* director = cocos2d::Director::getInstance();
             director->pushMatrix(cocos2d::MATRIX_STACK_TYPE::MATRIX_STACK_MODELVIEW);
             director->loadMatrix(cocos2d::MATRIX_STACK_TYPE::MATRIX_STACK_MODELVIEW, transform);
             

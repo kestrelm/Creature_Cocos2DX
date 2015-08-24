@@ -35,6 +35,7 @@
 
 #include "CreatureModule.h"
 #include "miniz.h"
+#include <algorithm>
 
 template <typename T>
 static T clipNum(const T& n, const T& lower, const T& upper) {
@@ -105,7 +106,7 @@ static std::vector<float> GetJSONNodeFloatArray(JsonNode& json_obj)
         it != JsonEnd(json_obj.value); ++it)
     {
         JsonNode * cur_node = *it;
-        ret_vals.push_back(cur_node->value.toNumber());
+        ret_vals.push_back((float)cur_node->value.toNumber());
     }
     
     return ret_vals;
@@ -548,6 +549,53 @@ static void FillUVSwapCache(JsonNode& json_obj,
     cache_manager.makeAllReady();
 }
 
+static void FillOpacityCache(JsonNode& json_obj,
+	const std::string& key,
+	int start_time,
+	int end_time,
+	meshOpacityCacheManager& cache_manager)
+{
+	JsonNode * base_obj = GetJSONNodeFromKey(json_obj, key);
+
+	cache_manager.init(start_time, end_time);
+
+	if (base_obj == NULL)
+	{
+		return;
+	}
+
+	for (JsonIterator it = JsonBegin(base_obj->value);
+		it != JsonEnd(base_obj->value);
+		++it)
+	{
+		JsonNode * cur_node = *it;
+
+		int cur_time = atoi(cur_node->key);
+		std::vector<meshOpacityCache> cache_list;
+
+		for (JsonIterator uv_it = JsonBegin(cur_node->value);
+			uv_it != JsonEnd(cur_node->value);
+			++uv_it)
+		{
+			JsonNode * opacity_node = *uv_it;
+
+			std::string cur_name(opacity_node->key);
+
+			meshOpacityCache cache_data(cur_name);
+			float cur_opacity = (float)GetJSONNodeFromKey(*opacity_node, "opacity")->value.toNumber();
+			cache_data.setOpacity(cur_opacity);
+
+			cache_list.push_back(cache_data);
+		}
+
+		int set_index = cache_manager.getIndexByTime(cur_time);
+		cache_manager.getCacheTable()[set_index] = cache_list;
+	}
+
+	cache_manager.makeAllReady();
+
+}
+
 
 namespace CreatureModule {
     // Load the json structure
@@ -779,6 +827,16 @@ namespace CreatureModule {
     {
         return end_time;
     }
+
+	void CreatureAnimation::setStartTime(int value_in)
+	{
+		start_time = (float)value_in;
+	}
+
+	void CreatureAnimation::setEndTime(int value_in)
+	{
+		end_time = (float)value_in;
+	}
     
     meshBoneCacheManager&
     CreatureAnimation::getBonesCache()
@@ -797,6 +855,12 @@ namespace CreatureModule {
     {
         return uv_warp_cache;
     }
+
+	meshOpacityCacheManager& 
+	CreatureAnimation::getOpacityCache()
+	{
+		return opacity_cache;
+	}
     
     const std::string&
     CreatureAnimation::getName() const
@@ -813,29 +877,36 @@ namespace CreatureModule {
         JsonNode * json_clip = GetJSONNodeFromKey(*json_anim_base, name_in);
         
         std::pair<int, int> start_end_times = GetStartEndTimes(*json_clip, "bones");
-        start_time = start_end_times.first;
-        end_time = start_end_times.second;
+        start_time = (float)start_end_times.first;
+        end_time = (float)start_end_times.second;
         
         // bone animation
         FillBoneCache(*json_clip,
                       "bones",
-                      start_time,
-                      end_time,
+                      (int)start_time,
+					  (int)end_time,
                       bones_cache);
         
         // mesh deformation animation
         FillDeformationCache(*json_clip,
                              "meshes",
-                             start_time,
-                             end_time,
+							 (int)start_time,
+							 (int)end_time,
                              displacement_cache);
         
         // uv swapping animation
         FillUVSwapCache(*json_clip,
                         "uv_swaps",
-                        start_time,
-                        end_time,
+						(int)start_time,
+						(int)end_time,
                         uv_warp_cache);
+
+		// opacity animation
+		FillOpacityCache(*json_clip,
+			"mesh_opacities",
+			(int)start_time,
+			(int)end_time,
+			opacity_cache);
     }
     
     bool
@@ -849,11 +920,22 @@ namespace CreatureModule {
     {
         return cache_pts;
     }
+
+	void 
+	CreatureAnimation::clearCachePts()
+	{
+		for (size_t i = 0; i < cache_pts.size(); i++)
+		{
+			delete[] cache_pts[i];
+		}
+
+		cache_pts.clear();
+	}
     
     int
     CreatureAnimation::getIndexByTime(int time_in) const
     {
-        int retval = time_in - start_time;
+        int retval = time_in - (int)start_time;
         retval = clipNum(retval, 0, (int)cache_pts.size() - 1);
         
         return retval;
@@ -869,26 +951,20 @@ namespace CreatureModule {
         glm::float32 * set_pt = target_pts;
         glm::float32 * floor_pts = cache_pts[cur_floor_time];
         glm::float32 * ceil_pts = cache_pts[cur_ceil_time];
-        float ratio1 = 1.0f - cur_ratio;
-        float ratio2 = cur_ratio;
         
         for(int i = 0; i < num_pts; i++)
         {
-#if __APPLE__
-            __builtin_prefetch (&floor_pts[3], 0, 0);
-            __builtin_prefetch (&floor_pts[4], 0, 0);
-            __builtin_prefetch (&ceil_pts[3], 0, 0);
-            __builtin_prefetch (&ceil_pts[4], 0, 0);
-            __builtin_prefetch (&ceil_pts[5], 0, 0);
-#endif
-            set_pt[0] = (ratio1 * floor_pts[0]) + (ratio2 * ceil_pts[0]);
-            set_pt[1] = (ratio1 * floor_pts[1]) + (ratio2 * ceil_pts[1]);
-            set_pt[2] = ceil_pts[2];
+
             
+            set_pt[0] = ((1.0f - cur_ratio) * floor_pts[0]) + (cur_ratio * ceil_pts[0]);
+            set_pt[1] = ((1.0f - cur_ratio) * floor_pts[1]) + (cur_ratio * ceil_pts[1]);
+            set_pt[2] = ((1.0f - cur_ratio) * floor_pts[2]) + (cur_ratio * ceil_pts[2]);
+
             set_pt += 3;
             floor_pts += 3;
             ceil_pts += 3;
         }
+        
     }
     
     // CreatureManager class
@@ -917,6 +993,7 @@ namespace CreatureModule {
     CreatureManager::AddAnimation(std::shared_ptr<CreatureModule::CreatureAnimation> animation_in)
     {
         animations[animation_in->getName()] = animation_in;
+		active_blend_run_times[animation_in->getName()] = animation_in->getStartTime();
     }
     
     void
@@ -933,7 +1010,7 @@ namespace CreatureModule {
     CreatureManager::GetAnimation(const std::string name_in)
     {
         if(animations.count(name_in) > 0) {
-            animations[name_in];
+            return animations[name_in].get();
         }
         
         return NULL;
@@ -962,34 +1039,44 @@ namespace CreatureModule {
             auto& cur_animation = animations[active_animation_name];
             run_time = cur_animation->getStartTime();
             
-            auto& displacement_cache_manager = cur_animation->getDisplacementCache();
-            std::vector<meshDisplacementCache>& displacement_table =
-                displacement_cache_manager.getCacheTable()[0];
-            
-            auto& uv_warp_cache_manager = cur_animation->getUVWarpCache();
-            std::vector<meshUVWarpCache>& uv_swap_table =
-                uv_warp_cache_manager.getCacheTable()[0];
-            
-            meshRenderBoneComposition * render_composition =
-                target_creature->GetRenderComposition();
-            std::vector<meshRenderRegion *>& all_regions = render_composition->getRegions();
-            
-            int index = 0;
-            for(auto& cur_region : all_regions) {
-                // Setup active or inactive displacements
-                bool use_local_displacements = !displacement_table[index].getLocalDisplacements().empty();
-                bool use_post_displacements = !displacement_table[index].getPostDisplacements().empty();
-                cur_region->setUseLocalDisplacements(use_local_displacements);
-                cur_region->setUsePostDisplacements(use_post_displacements);
-                
-                // Setup active or inactive uv swaps
-                cur_region->setUseUvWarp(uv_swap_table[index].getEnabled());
-                
-                index++;
-            }
+			UpdateRegionSwitches(name_in);
         }
     }
-    
+
+	void 
+	CreatureManager::UpdateRegionSwitches(const std::string& animation_name_in)
+	{
+		if (animations.count(animation_name_in) > 0) {
+			auto& cur_animation = animations[animation_name_in];
+
+			auto& displacement_cache_manager = cur_animation->getDisplacementCache();
+			std::vector<meshDisplacementCache>& displacement_table =
+				displacement_cache_manager.getCacheTable()[0];
+
+			auto& uv_warp_cache_manager = cur_animation->getUVWarpCache();
+			std::vector<meshUVWarpCache>& uv_swap_table =
+				uv_warp_cache_manager.getCacheTable()[0];
+
+			meshRenderBoneComposition * render_composition =
+				target_creature->GetRenderComposition();
+			std::vector<meshRenderRegion *>& all_regions = render_composition->getRegions();
+
+			int index = 0;
+			for (auto& cur_region : all_regions) {
+				// Setup active or inactive displacements
+				bool use_local_displacements = !displacement_table[index].getLocalDisplacements().empty();
+				bool use_post_displacements = !displacement_table[index].getPostDisplacements().empty();
+				cur_region->setUseLocalDisplacements(use_local_displacements);
+				cur_region->setUsePostDisplacements(use_post_displacements);
+
+				// Setup active or inactive uv swaps
+				cur_region->setUseUvWarp(uv_swap_table[index].getEnabled());
+
+				index++;
+			}
+		}
+	}
+
     const std::string&
     CreatureManager::GetActiveAnimationName() const
     {
@@ -1063,16 +1150,25 @@ namespace CreatureModule {
             // already blending to that so just return
             return;
         }
+
+		ResetBlendTime(animation_name_in);
         
         auto_blend_delta = blend_delta;
         auto_blend_names[0] = active_animation_name;
         auto_blend_names[1] = animation_name_in;
         blending_factor = 0;
-        
-        active_animation_name = animation_name_in;
+
+		active_animation_name = animation_name_in;
         
         SetBlendingAnimations(auto_blend_names[0], auto_blend_names[1]);
     }
+
+	void 
+	CreatureManager::ResetBlendTime(const std::string& name_in)
+	{
+		auto& cur_animation = animations[name_in];
+		active_blend_run_times[name_in] = cur_animation->getStartTime();
+	}
 
     void
     CreatureManager::ResetToStartTimes()
@@ -1082,8 +1178,15 @@ namespace CreatureModule {
             return;
         }
         
+		// reset non blend time
         auto& cur_animation = animations[active_animation_name];
         run_time = cur_animation->getStartTime();
+
+		// reset blend times too
+		for (auto& blend_time_data : active_blend_run_times)
+		{
+			ResetBlendTime(blend_time_data.first);
+		}
     }
 
     void
@@ -1091,10 +1194,34 @@ namespace CreatureModule {
     {
         blending_factor = value_in;
     }
+
+	void 
+	CreatureManager::ClearPointCache(const std::string& animation_name_in)
+	{
+		if (animations.count(animation_name_in) == 0)
+		{
+			return;
+		}
+
+		auto cur_animation = animations[animation_name_in];
+		if (cur_animation->hasCachePts())
+		{
+			cur_animation->clearCachePts();
+		}
+	}
     
     void
-    CreatureManager::MakePointCache(const std::string& animation_name_in)
+	CreatureManager::MakePointCache(const std::string& animation_name_in, int gap_step)
     {
+		if (animations.count(animation_name_in) == 0)
+		{
+			return;
+		}
+
+		if (gap_step < 1) {
+			gap_step = 1;
+		}
+
         float store_run_time = getRunTime();
         auto cur_animation = animations[animation_name_in];
         if(cur_animation->hasCachePts())
@@ -1104,22 +1231,67 @@ namespace CreatureModule {
         }
         
         std::vector<glm::float32 *>& cache_pts_list = cur_animation->getCachePts();
-        
-        for(int i = cur_animation->getStartTime(); i <= cur_animation->getEndTime(); i++)
+		int array_size = target_creature->GetTotalNumPoints() * 3;
+
+        UpdateRegionSwitches(animation_name_in);
+
+        //for(int i = (int)cur_animation->getStartTime(); i <= (int)cur_animation->getEndTime(); i++)
+		int i = (int)cur_animation->getStartTime();
+		while (true)
         {
-            setRunTime((float)i);
-            auto new_pts = new glm::float32[target_creature->GetTotalNumPoints() * 3];
-            PoseCreature(animation_name_in, new_pts);
+            run_time = (float)i;
+			auto new_pts = new glm::float32[array_size];
+            PoseCreature(animation_name_in, new_pts, getRunTime());
             
-            cache_pts_list.push_back(new_pts);
+			int real_step = gap_step;
+			if (i + real_step > cur_animation->getEndTime())
+			{
+				real_step = (int)cur_animation->getEndTime() - i;
+			}
+
+			bool firstCase = real_step > 1;
+			bool secondCase = cache_pts_list.size() >= 1;
+			if (firstCase && secondCase)
+			{
+				// fill in the gaps
+				glm::float32 * prev_pts = cache_pts_list[cache_pts_list.size() - 1];
+				for (int j = 0; j < real_step; j++)
+				{
+					float factor = (float)j / (float)real_step;
+					glm::float32 * gap_pts = interpFloatArray(prev_pts, new_pts, factor, array_size);
+					cache_pts_list.push_back(gap_pts);
+				}
+			}
+
+			cache_pts_list.push_back(new_pts);
+			i += real_step;
+
+			if (i > cur_animation->getEndTime() || real_step == 0)
+			{
+				break;
+			}
         }
         
         setRunTime(store_run_time);
     }
     
+	glm::float32 * 
+	CreatureManager::interpFloatArray(glm::float32 * first_list, glm::float32 * second_list, float factor, int array_size)
+	{
+		glm::float32 * ret_array = new glm::float32[array_size];
+		for (int i = 0; i < array_size; i++)
+		{
+			float new_val = ((1.0f - factor) * first_list[i]) + (factor * second_list[i]);
+			ret_array[i] = new_val;
+		}
+
+		return ret_array;
+	}
+
     void
     CreatureManager::PoseCreature(const std::string& animation_name_in,
-                                  glm::float32 * target_pts)
+                                  glm::float32 * target_pts,
+								  float input_run_time)
     {
         if(animations.count(animation_name_in) <= 0)
         {
@@ -1133,6 +1305,7 @@ namespace CreatureModule {
         auto& bone_cache_manager = cur_animation->getBonesCache();
         auto& displacement_cache_manager = cur_animation->getDisplacementCache();
         auto& uv_warp_cache_manager = cur_animation->getUVWarpCache();
+		auto& opacity_cache_manager = cur_animation->getOpacityCache();
         
         meshRenderBoneComposition * render_composition =
         target_creature->GetRenderComposition();
@@ -1143,7 +1316,7 @@ namespace CreatureModule {
         std::unordered_map<std::string, meshRenderRegion *>& regions_map =
         render_composition->getRegionsMap();
         
-        bone_cache_manager.retrieveValuesAtTime(getRunTime(),
+		bone_cache_manager.retrieveValuesAtTime(input_run_time,
                                                 bones_map);
         
         if(bones_override_callback)
@@ -1151,10 +1324,12 @@ namespace CreatureModule {
             bones_override_callback(bones_map);
         }
         
-        displacement_cache_manager.retrieveValuesAtTime(getRunTime(),
+		displacement_cache_manager.retrieveValuesAtTime(input_run_time,
                                                         regions_map);
-        uv_warp_cache_manager.retrieveValuesAtTime(getRunTime(),
+		uv_warp_cache_manager.retrieveValuesAtTime(input_run_time,
                                                    regions_map);
+		opacity_cache_manager.retrieveValuesAtTime(input_run_time,
+													regions_map);
         
         
         // Do posing, decide if we are blending or not
@@ -1174,14 +1349,76 @@ namespace CreatureModule {
     void
     CreatureManager::ProcessAutoBlending()
     {
-        
-        
+        // process blending factor
         blending_factor += auto_blend_delta;
         if(blending_factor > 1)
         {
             blending_factor = 1;
         }
     }
+
+	void 
+		CreatureManager::PoseJustBones(const std::string& animation_name_in,
+											glm::float32 * target_pts,
+											float input_run_time)
+	{
+		if (animations.count(animation_name_in) <= 0)
+		{
+			std::cerr << "CreatureManager::PoseCreature() - Animation not found: " << animation_name_in << std::endl;
+			throw "CreatureManager::PoseCreature() - Invalid animation name!";
+			return;
+		}
+
+		auto& cur_animation = animations[animation_name_in];
+
+		auto& bone_cache_manager = cur_animation->getBonesCache();
+		auto& opacity_cache_manager = cur_animation->getOpacityCache();
+
+		meshRenderBoneComposition * render_composition =
+			target_creature->GetRenderComposition();
+
+		// Extract values from caches
+		std::unordered_map<std::string, meshBone *>& bones_map =
+			render_composition->getBonesMap();
+		std::unordered_map<std::string, meshRenderRegion *>& regions_map =
+			render_composition->getRegionsMap();
+
+		bone_cache_manager.retrieveValuesAtTime(input_run_time,
+			bones_map);
+
+		if (bones_override_callback)
+		{
+			bones_override_callback(bones_map);
+		}
+
+		opacity_cache_manager.retrieveValuesAtTime(input_run_time,
+			regions_map);
+
+		JustRunUVWarps(animation_name_in, input_run_time);
+	}
+
+	void CreatureManager::JustRunUVWarps(const std::string& animation_name_in, float input_run_time)
+	{
+		auto& cur_animation = animations[animation_name_in];
+
+		meshRenderBoneComposition * render_composition =
+			target_creature->GetRenderComposition();
+		std::unordered_map<std::string, meshRenderRegion *>& regions_map =
+			render_composition->getRegionsMap();
+
+		auto& uv_warp_cache_manager = cur_animation->getUVWarpCache();
+		uv_warp_cache_manager.retrieveValuesAtTime(input_run_time,
+			regions_map);
+		std::vector<meshRenderRegion *>& all_regions = render_composition->getRegions();
+
+		int index = 0;
+		for (auto& cur_region : all_regions) {
+			if (cur_region->getUseUvWarp())
+			{
+				cur_region->runUvWarp();
+			}
+		}
+	}
 
     void
     CreatureManager::Update(float delta)
@@ -1196,18 +1433,26 @@ namespace CreatureModule {
         if(do_auto_blending)
         {
             ProcessAutoBlending();
+			// process run times for blends
+			increAutoBlendRuntimes(delta * time_scale);
         }
         
         if(do_blending)
         {
             for(int i = 0; i < 2; i++) {
-                auto& cur_animation = animations[active_blend_animation_names[i]];
+				auto& cur_animation_name = active_blend_animation_names[i];
+				auto& cur_animation = animations[cur_animation_name];
+				auto& cur_animation_run_time = active_blend_run_times[cur_animation_name];
+
                 if(cur_animation->hasCachePts())
                 {
-                    cur_animation->poseFromCachePts(getRunTime(), blend_render_pts[i], target_creature->GetTotalNumPoints());
+					UpdateRegionSwitches(cur_animation_name);
+					cur_animation->poseFromCachePts(cur_animation_run_time, blend_render_pts[i], target_creature->GetTotalNumPoints());
+					PoseJustBones(cur_animation_name, blend_render_pts[i], cur_animation_run_time);
                 }
                 else {
-                    PoseCreature(active_blend_animation_names[i], blend_render_pts[i]);
+					UpdateRegionSwitches(active_blend_animation_names[i]);
+					PoseCreature(active_blend_animation_names[i], blend_render_pts[i], cur_animation_run_time);
                 }
             }
             
@@ -1225,11 +1470,11 @@ namespace CreatureModule {
             auto& cur_animation = animations[active_animation_name];
             if(cur_animation->hasCachePts())
             {
-                cur_animation->poseFromCachePts(getRunTime(), target_creature->GetRenderPts(), target_creature->GetTotalNumPoints());
-
+				cur_animation->poseFromCachePts(getRunTime(), target_creature->GetRenderPts(), target_creature->GetTotalNumPoints());
+				PoseJustBones(active_animation_name, target_creature->GetRenderPts(), getRunTime());
             }
             else {
-                PoseCreature(active_animation_name, target_creature->GetRenderPts());
+				PoseCreature(active_animation_name, target_creature->GetRenderPts(), getRunTime());
             }
         }
         
@@ -1313,7 +1558,60 @@ namespace CreatureModule {
     {
         run_time = time_in;
     }
-    
+
+	float 
+	CreatureManager::getActualRunTime() const
+	{
+		if (do_auto_blending)
+		{
+			if (active_blend_run_times.count(active_animation_name)) {
+				return active_blend_run_times.at(active_animation_name);
+			}
+		}
+
+		return run_time;
+	}
+
+ 
+	float 
+	CreatureManager::correctRunTime(float time_in, const std::string& animation_name)
+	{
+		float ret_time = time_in;
+		auto& cur_animation = animations[animation_name];
+		float anim_start_time = cur_animation->getStartTime();
+		float anim_end_time = cur_animation->getEndTime();
+
+		if (use_custom_time_range)
+		{
+			anim_start_time = (float)custom_start_time;
+			anim_end_time = (float)custom_end_time;
+		}
+
+
+		if (ret_time > anim_end_time)
+		{
+			if (should_loop)
+			{
+				ret_time = anim_start_time;
+			}
+			else {
+				ret_time = anim_end_time;
+			}
+		}
+		else if (ret_time < anim_start_time)
+		{
+			if (should_loop)
+			{
+				ret_time = anim_end_time;
+			}
+			else {
+				ret_time = anim_start_time;
+			}
+		}
+
+		return ret_time;
+	}
+
     void
     CreatureManager::increRunTime(float delta_in)
     {
@@ -1322,41 +1620,28 @@ namespace CreatureModule {
             return;
         }
         
-        auto& cur_animation = animations[active_animation_name];
-
         run_time += delta_in;
-        float anim_start_time = cur_animation->getStartTime();
-        float anim_end_time = cur_animation->getEndTime();
-        
-        if(use_custom_time_range)
-        {
-            anim_start_time = custom_start_time;
-            anim_end_time = custom_end_time;
-        }
-        
-        
-        if(run_time > anim_end_time)
-        {
-            if(should_loop)
-            {
-                run_time = anim_start_time;
-            }
-            else {
-                run_time = anim_end_time;
-            }
-        }
-        else if(run_time < anim_start_time)
-        {
-            if(should_loop)
-            {
-                run_time = anim_end_time;
-            }
-            else {
-                run_time = anim_start_time;
-            }
-        }
+		run_time = correctRunTime(run_time, active_animation_name);
     }
     
+	void 
+	CreatureManager::increAutoBlendRuntimes(float delta_in)
+	{
+		std::string set_animation_name;
+		for (auto& cur_animation_name : auto_blend_names)
+		{
+			if ((animations.count(cur_animation_name) > 0) 
+				&& (set_animation_name != cur_animation_name))
+			{
+				float& cur_run_time = active_blend_run_times[cur_animation_name];
+				cur_run_time += delta_in;
+				cur_run_time = correctRunTime(cur_run_time, cur_animation_name);
+
+				set_animation_name = cur_animation_name;
+			}
+		}
+	}
+
     void
     CreatureManager::SetShouldLoop(bool flag_in)
     {
