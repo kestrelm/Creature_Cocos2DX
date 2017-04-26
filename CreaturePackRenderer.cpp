@@ -33,6 +33,10 @@
  * RUNTIMES.
  *****************************************************************************/
 
+#include <ios>
+#include <iterator>
+#include <vector>
+#include <cstdint>
 #include "CreaturePackRenderer.h"
 
 namespace CreaturePackRenderer {
@@ -200,17 +204,30 @@ namespace CreaturePackRenderer {
 			playerObj->data.indices.get());
     }
 
-	// Helper function to create a CreaturePackLoader from a full filepath
-	std::shared_ptr<CreaturePackLoader> createPackLoader(const std::string & fullpath)
-	{
-		// open the file:
-		std::basic_ifstream<uint8_t> file(fullpath, std::ios::binary);
+    // Helper function to create a CreaturePackLoader from a full filepath
+    std::shared_ptr<CreaturePackLoader> createPackLoader(const std::string & fullpath)
+    {
+        // open the file:
+        std::ifstream file(fullpath, std::ios::binary);
 
-		// read the data:
-		auto raw_bytes = std::vector<uint8_t>((std::istreambuf_iterator<uint8_t>(file)),
-			std::istreambuf_iterator<uint8_t>());
+        // Stop eating new lines in binary mode!!!
+        file.unsetf(std::ios::skipws);
 
-		return std::shared_ptr<CreaturePackLoader>(new CreaturePackLoader(raw_bytes));
-	}
+        // get its size:
+        file.seekg(0, std::ios::end);
+        const std::streampos fileSize = file.tellg();
+        file.seekg(0, std::ios::beg);
+
+        // reserve capacity
+        std::vector<uint8_t> raw_bytes;
+        raw_bytes.reserve(fileSize);
+
+        // read the data:
+        std::copy(std::istream_iterator<uint8_t>(file),
+                  std::istream_iterator<uint8_t>(),
+                  std::back_inserter(raw_bytes));
+
+        return std::shared_ptr<CreaturePackLoader>(new CreaturePackLoader(raw_bytes));
+    }
 
 }
