@@ -33,12 +33,12 @@
  * RUNTIMES.
  *****************************************************************************/
 
-#ifndef __CocosEngineTest__CreatureRenderer__
-#define __CocosEngineTest__CreatureRenderer__
+#pragma once
 
 #include <iostream>
 #include <memory>
 #include "CreatureModule.h"
+#include "CreatureMetaData.h"
 #include "cocos2d.h"
 
 namespace CreatureRenderer {
@@ -60,6 +60,31 @@ namespace CreatureRenderer {
         void SetDebugDraw(bool flag_in);
         
         std::pair<glm::vec2, glm::vec2> GetCharacterBounds();
+
+		void loadMetaData(const std::string& filename);
+
+		void setUseSkinSwap(bool flag_in)
+		{
+			use_skinswap = flag_in;
+		}
+
+		bool useSkinSwap() const {
+			return use_skinswap;
+		}
+
+		void setUseLayerOrder(bool flag_in)
+		{
+			use_layerorder = flag_in;
+		}
+
+		bool useLayerOrder() const {
+			return use_layerorder;
+		}
+
+		void setSkinSwap(const std::string& name_in)
+		{
+			skinswap_name = name_in;
+		}
         
     protected:
         Renderer(CreatureModule::CreatureManager * manager_in,
@@ -67,7 +92,12 @@ namespace CreatureRenderer {
         
         virtual ~Renderer();
         
+#ifdef _CREATURE_DEBUG_DRAW
         void drawDebugBones(meshBone * draw_bone);
+#endif
+		void processSkinswap();
+
+		void processLayerorder(int time_in);
 
         CreatureModule::CreatureManager * manager;
         cocos2d::CustomCommand _drawCommand;
@@ -75,7 +105,9 @@ namespace CreatureRenderer {
         cocos2d::Texture2D * texture;
         bool debug_draw;
         cocos2d::Rect character_bounds;
+		std::vector<glm::uint32> meta_indices, real_meta_indices;
+		std::unique_ptr<CreatureModule::CreatureMetaData> metadata;
+		std::string skinswap_name;
+		bool use_skinswap = false, use_layerorder = false;
     };
 };
-
-#endif /* defined(__CocosEngineTest__CreatureRenderer__) */

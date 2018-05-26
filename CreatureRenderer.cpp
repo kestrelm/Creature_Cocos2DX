@@ -79,6 +79,17 @@ namespace CreatureRenderer {
         character_bounds = cocos2d::Rect(compute_bounds.first.x, compute_bounds.first.y, 
                                         compute_bounds.second.x - compute_bounds.first.x,
                                          compute_bounds.second.y - compute_bounds.first.y);
+
+		if (metadata) {
+			if (useSkinSwap())
+			{
+				processSkinswap();
+			}
+			else if (useLayerOrder())
+			{
+				processLayerorder(static_cast<int>(manager->getActualRunTime()));
+			}
+		}
     }
     
     void
@@ -133,6 +144,18 @@ namespace CreatureRenderer {
         
         return std::make_pair(min_pt, max_pt);
     }
+
+	void Renderer::loadMetaData(const std::string & filename)
+	{
+		std::ifstream read_file;
+		read_file.open(filename.c_str());
+		std::stringstream str_stream;
+		str_stream << read_file.rdbuf();
+		read_file.close();
+
+		metadata = std::make_unique<CreatureModule::CreatureMetaData>(str_stream.str());
+		meta_indices.resize(manager->GetCreature()->GetTotalNumIndices());
+	}
     
     void
     Renderer::SetDebugDraw(bool flag_in)
@@ -198,12 +221,18 @@ namespace CreatureRenderer {
                               0,
                               manager->GetCreature()->GetGlobalUvs());
         
-        glDrawElements(GL_TRIANGLES,
-                       manager->GetCreature()->GetTotalNumIndices(),
-                       GL_UNSIGNED_INT,
-                       manager->GetCreature()->GetGlobalIndices());
-        
-        if(debug_draw)
+		bool use_meta_indices = (metadata
+			&& (useSkinSwap() || use_layerorder)
+			&& (real_meta_indices.empty() == false));
+
+		glDrawElements(
+			GL_TRIANGLES,
+			use_meta_indices ? (int)real_meta_indices.size() : manager->GetCreature()->GetTotalNumIndices(),
+			GL_UNSIGNED_INT,
+			use_meta_indices ? real_meta_indices.data() : manager->GetCreature()->GetGlobalIndices());
+
+#ifdef _CREATURE_DEBUG_DRAW
+		if(debug_draw)
         {
             director->pushMatrix(cocos2d::MATRIX_STACK_TYPE::MATRIX_STACK_MODELVIEW);
             director->loadMatrix(cocos2d::MATRIX_STACK_TYPE::MATRIX_STACK_MODELVIEW, transform);
@@ -216,19 +245,15 @@ namespace CreatureRenderer {
             
             director->popMatrix(cocos2d::MATRIX_STACK_TYPE::MATRIX_STACK_MODELVIEW);
         }
-        
+#endif        
     }
 
-    void
+#ifdef _CREATURE_DEBUG_DRAW
+	void
     Renderer::drawDebugBones(meshBone * draw_bone)
     {
-
-        
         glm::vec4 pt1 = draw_bone->getWorldStartPt();
         glm::vec4 pt2 = draw_bone->getWorldEndPt();
-
-        //glm::vec4 pt1 = draw_bone->getWorldRestStartPt();
-        //glm::vec4 pt2 = draw_bone->getWorldRestEndPt();
 
         cocos2d::DrawPrimitives::drawLine(cocos2d::Vec2(pt1.x, pt1.y),
                                           cocos2d::Vec2(pt2.x, pt2.y));
@@ -239,6 +264,57 @@ namespace CreatureRenderer {
             drawDebugBones(cur_child);
         }
     }
+#endif
 
+	void Renderer::processSkinswap()
+	{
+		int real_indices_size = 0;
+		auto render_composition = manager->GetCreature()->GetRenderComposition();
+		auto retval = metadata->buildSkinSwapIndices(
+			skinswap_name,
+			render_composition,
+			[&](int idx, int value)
+			{
+				meta_indices[idx] = value;
+			},
+			real_indices_size
+		);
 
+		if (retval)
+		{
+			if (real_meta_indices.size() != (int)real_indices_size)
+			{
+				real_meta_indices.resize(real_indices_size);
+			}
+
+			for (int i = 0; i < real_indices_size; i++)
+			{
+				real_meta_indices[i] = meta_indices[i];
+			}
+		}
+	}
+
+	void Renderer::processLayerorder(int time_in)
+	{
+		metadata->updateIndicesAndPoints(
+			manager->GetCreature()->GetGlobalIndices(),
+			[&](int idx, int value)
+			{
+				meta_indices[idx] = value;
+			},
+			manager->GetCreature()->GetTotalNumIndices(),
+			manager->GetActiveAnimationName(),
+			time_in
+		);
+
+		if (real_meta_indices.size() != meta_indices.size())
+		{
+			real_meta_indices.resize(meta_indices.size());
+		}
+
+		for (int i = 0; i < (int)real_meta_indices.size(); i++)
+		{
+			real_meta_indices[i] = meta_indices[i];
+		}
+	}
 }
