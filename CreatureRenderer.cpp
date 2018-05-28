@@ -48,15 +48,19 @@ namespace CreatureRenderer {
     
     Renderer::Renderer(CreatureModule::CreatureManager * manager_in,
                        cocos2d::Texture2D * texture_in)
-    : manager(manager_in), texture(texture_in), debug_draw(false)
+    : manager(manager_in), texture(nullptr), debug_draw(false)
     {
-        setGLProgram(cocos2d::ShaderCache::getInstance()->getGLProgram(cocos2d::GLProgram::SHADER_NAME_POSITION_TEXTURE_COLOR));
+        setGLProgram(cocos2d::GLProgramCache::getInstance()->getGLProgram(cocos2d::GLProgram::SHADER_NAME_POSITION_TEXTURE_COLOR));
+        setTexture(texture_in);
         scheduleUpdate();
     }
     
     Renderer::~Renderer()
     {
-        
+        if (texture)
+        {
+            CC_SAFE_RELEASE_NULL(texture);
+        }
     }
     
     void
@@ -156,6 +160,15 @@ namespace CreatureRenderer {
 		metadata = std::make_unique<CreatureModule::CreatureMetaData>(str_stream.str());
 		meta_indices.resize(manager->GetCreature()->GetTotalNumIndices());
 	}
+    
+    void Renderer::setTexture(cocos2d::Texture2D* texture_in)
+    {
+        if (texture != texture_in) {
+            CC_SAFE_RELEASE(texture);
+            CC_SAFE_RETAIN(texture_in);
+            texture = texture_in;
+        }
+    }
     
     void
     Renderer::SetDebugDraw(bool flag_in)

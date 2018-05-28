@@ -57,6 +57,8 @@ namespace CreatureRenderer {
         
         virtual const cocos2d::BlendFunc& getBlendFunc () const;
         
+        void setTexture(cocos2d::Texture2D * texture_in);
+	    
         void SetDebugDraw(bool flag_in);
         
         std::pair<glm::vec2, glm::vec2> GetCharacterBounds();
