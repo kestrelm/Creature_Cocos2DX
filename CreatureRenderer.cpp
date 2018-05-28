@@ -48,7 +48,7 @@ namespace CreatureRenderer {
     
     Renderer::Renderer(CreatureModule::CreatureManager * manager_in,
                        cocos2d::Texture2D * texture_in)
-    : manager(manager_in), texture(texture_in), debug_draw(false)
+    : manager(manager_in), texture(nullptr), debug_draw(false)
     {
         setGLProgram(cocos2d::GLProgramCache::getInstance()->getGLProgram(cocos2d::GLProgram::SHADER_NAME_POSITION_TEXTURE_COLOR));
         setTexture(texture_in);
@@ -57,7 +57,10 @@ namespace CreatureRenderer {
     
     Renderer::~Renderer()
     {
-        
+        if (texture)
+        {
+            CC_SAFE_RELEASE_NULL(texture);
+        }
     }
     
     void
