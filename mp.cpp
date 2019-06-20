@@ -1,9 +1,9 @@
+#include "mp.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <memory>
 
-#include "mp.h"
 
 namespace mpMini {
 	enum {
@@ -331,13 +331,13 @@ namespace mpMini {
 				msg_mini_read_bin(&array_size);
 				msg_mini_generic_data new_generic_data(0);
 
-				new_generic_data.type = MSG_MINI_GENERIC_ARRAY_INT_TYPE;
-				new_generic_data.int_array_val.resize(array_size);
+				new_generic_data.type = MSG_MINI_GENERIC_ARRAY_BYTE_TYPE;
+				new_generic_data.byte_array_val.resize(array_size);
 
-				readBytesChunk(array_size,
+				readBytesChunk(array_size, 
 					[&new_generic_data](int idx, uint8_t data)
 				{
-					new_generic_data.int_array_val[idx] = (int32_t)data;
+					new_generic_data.byte_array_val[idx] = data;
 				});
 				generic_data.push_back(new_generic_data);
 			}
@@ -741,7 +741,7 @@ namespace mpMini {
 		return true;
 	}
 
-	bool
+	bool 
 	msg_mini::msg_mini_read_bin(uint32_t *size)
 	{
 		msg_mini_object obj;
@@ -942,7 +942,7 @@ namespace mpMini {
 				return false;
 			}
 			obj->as.array_size = be16(obj->as.u16);
-		}
+		}		
 		else if (type_marker == BIN32_MARKER) {
 			obj->type = MSG_MINI_TYPE_BIN32;
 			if (!read(&obj->as.u32, sizeof(uint32_t))) {

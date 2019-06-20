@@ -43,6 +43,7 @@
 #include <memory>
 #include <array>
 #include <stack>
+#include <cstring>
 
 class CreatureTimeSample
 {
@@ -53,66 +54,66 @@ public:
 
 	}
 
-    CreatureTimeSample(int beginTimeIn, int endTimeIn, int dataIdxIn)
-    {
-        beginTime = beginTimeIn;
-        endTime = endTimeIn;
-        dataIdx = dataIdxIn;
-    }
-    
-    virtual ~CreatureTimeSample() {}
-    
-	int getAnimPointsOffset()
+	CreatureTimeSample(int32_t beginTimeIn, int32_t endTimeIn, int32_t dataIdxIn)
+	{
+		beginTime = beginTimeIn;
+		endTime = endTimeIn;
+		dataIdx = dataIdxIn;
+	}
+
+	virtual ~CreatureTimeSample() {}
+
+	int32_t getAnimPointsOffset()
 	{
 		if (dataIdx < 0)
 		{
 			return -1; // invalid
 		}
-		
+
 		return dataIdx + 1;
 	}
-	
-	int getAnimUvsOffset()
+
+	int32_t getAnimUvsOffset()
 	{
 		if (dataIdx < 0)
 		{
 			return -1; // invalid
 		}
-		
+
 		return dataIdx + 2;
 	}
-	
-	int getAnimColorsOffset()
+
+	int32_t getAnimColorsOffset()
 	{
 		if (dataIdx < 0)
 		{
 			return -1; // invalid
 		}
-		
+
 		return dataIdx + 3;
 	}
 
-    int beginTime;
-    int endTime;
-    int dataIdx;
+	int32_t beginTime;
+	int32_t endTime;
+	int32_t dataIdx;
 };
 
 class CreaturePackSampleData {
 public:
-    CreaturePackSampleData(int firstSampleIdxIn, int secondSampleIdxIn, float sampleFractionIn)
-    {
-        firstSampleIdx = firstSampleIdxIn;
-        secondSampleIdx = secondSampleIdxIn;
-        sampleFraction = sampleFractionIn;
-    }
+	CreaturePackSampleData(int32_t firstSampleIdxIn, int32_t secondSampleIdxIn, float sampleFractionIn)
+	{
+		firstSampleIdx = firstSampleIdxIn;
+		secondSampleIdx = secondSampleIdxIn;
+		sampleFraction = sampleFractionIn;
+	}
 
-    int firstSampleIdx, secondSampleIdx;
-    float sampleFraction;
+	int32_t firstSampleIdx, secondSampleIdx;
+	float sampleFraction;
 };
 
-static bool sortArrayNum(int a, int b)
+static bool sortArrayNum(int32_t a, int32_t b)
 {
-    return a < b;
+	return a < b;
 }
 
 class CreaturePackAnimClip
@@ -124,39 +125,39 @@ public:
 
 	}
 
-    CreaturePackAnimClip(int dataIdxIn)
-    {
-        dataIdx = dataIdxIn;
+	CreaturePackAnimClip(int dataIdxIn)
+	{
+		dataIdx = dataIdxIn;
 		startTime = 0;
 		endTime = 0;
 		firstSet = false;
-    }
+	}
 
 	CreaturePackSampleData sampleTime(float timeIn) const
 	{
-		int lookupTime = (int)(roundf(timeIn));
+		int32_t lookupTime = (int32_t)(roundf(timeIn));
 		if (timeSamplesMap.count(lookupTime) == 0)
 		{
 			float curTime = timeSamplesMap.begin()->second.beginTime;
-			return CreaturePackSampleData((int)curTime, (int)curTime, 0.0f);
+			return CreaturePackSampleData((int32_t)curTime, (int32_t)curTime, 0.0f);
 		}
 
 		float lowTime = (float)timeSamplesMap.at(lookupTime).beginTime;
 		float highTime = (float)timeSamplesMap.at(lookupTime).endTime;
-		
-		if ( (highTime - lowTime) <= 0.0001)
+
+		if ((highTime - lowTime) <= 0.0001)
 		{
-            return CreaturePackSampleData((int)lowTime, (int)highTime, 0.0f);
+			return CreaturePackSampleData((int32_t)lowTime, (int32_t)highTime, 0.0f);
 		}
-	
-		float curFraction = (timeIn - lowTime) / ( highTime - lowTime );
-		
-        return CreaturePackSampleData((int)lowTime, (int)highTime, curFraction);
+
+		float curFraction = (timeIn - lowTime) / (highTime - lowTime);
+
+		return CreaturePackSampleData((int32_t)lowTime, (int32_t)highTime, curFraction);
 	}
-	
+
 	float correctTime(float timeIn, bool withLoop) const
 	{
-		if(withLoop == false) {
+		if (withLoop == false) {
 			if (timeIn < startTime)
 			{
 				return startTime;
@@ -176,15 +177,15 @@ public:
 				return startTime;
 			}
 		}
-		
+
 		return timeIn;
 	}
-	
-	void addTimeSample(int timeIn, int dataIdxIn)
+
+	void addTimeSample(int32_t timeIn, int32_t dataIdxIn)
 	{
 		CreatureTimeSample newTimeSample(timeIn, timeIn, dataIdxIn);
 		timeSamplesMap[timeIn] = newTimeSample;
-		
+
 		if (firstSet == false)
 		{
 			firstSet = true;
@@ -196,45 +197,45 @@ public:
 			{
 				startTime = timeIn;
 			}
-			
+
 			if (endTime < timeIn)
 			{
 				endTime = timeIn;
 			}
 		}
-    }
-	
+	}
+
 	void finalTimeSamples()
 	{
-		int oldTime = startTime;
-		std::vector<int> sorted_keys;
-		
+		int32_t oldTime = startTime;
+		std::vector<int32_t> sorted_keys;
+
 		for (auto curData : timeSamplesMap)
 		{
 			sorted_keys.push_back(curData.first);
 		}
-		
-        std::sort(sorted_keys.begin(), sorted_keys.end(), sortArrayNum);
-		
+
+		std::sort(sorted_keys.begin(), sorted_keys.end(), sortArrayNum);
+
 		for (auto curTime : sorted_keys)
 		{
 			if (curTime != oldTime)
 			{
-				for (int fillTime = oldTime + 1; fillTime < curTime; fillTime++)
+				for (int32_t fillTime = oldTime + 1; fillTime < curTime; fillTime++)
 				{
 					CreatureTimeSample newTimeSample(oldTime, curTime, -1);
-                    timeSamplesMap[fillTime] = newTimeSample;
+					timeSamplesMap[fillTime] = newTimeSample;
 				}
-				
+
 				oldTime = curTime;
 			}
-		}		
+		}
 	}
 
-    int startTime, endTime;
-    std::unordered_map<int, CreatureTimeSample> timeSamplesMap;
-    int dataIdx;
-    bool firstSet;
+	int32_t startTime, endTime;
+	std::unordered_map<int32_t, CreatureTimeSample> timeSamplesMap;
+	int32_t dataIdx;
+	bool firstSet;
 };
 
 // This is the class the loads in Creature Pack Data from disk
@@ -246,16 +247,16 @@ public:
 		dMinX = dMinY = dMaxX = dMaxY = 0;
 	}
 
-    CreaturePackLoader(const std::vector<uint8_t>& byteArray)
+	CreaturePackLoader(const std::vector<uint8_t>& byteArray)
 		: CreaturePackLoader()
-    {
+	{
 		runDecoder(byteArray);
 		meshRegionsList = findConnectedRegions();
-    }
+	}
 
-    virtual ~CreaturePackLoader() {}
-    
-	void updateIndices(int idx)
+	virtual ~CreaturePackLoader() {}
+
+	void updateIndices(int32_t idx)
 	{
 		auto& cur_data = fileData[idx].int_array_val;
 		for (size_t i = 0; i < cur_data.size(); i++)
@@ -264,21 +265,21 @@ public:
 		}
 	}
 
-	void updatePoints(int idx)
+	void updatePoints(int32_t idx)
 	{
 		auto& cur_data = fileData[idx].float_array_val;
 		for (size_t i = 0; i < cur_data.size(); i++)
 		{
-			points.get()[i] =  cur_data[i];
+			points.get()[i] = cur_data[i];
 		}
 	}
 
-    void updateUVs(int idx)
+	void updateUVs(int32_t idx)
 	{
 		auto& cur_data = fileData[idx].float_array_val;
 		for (size_t i = 0; i < cur_data.size(); i++)
 		{
-			uvs.get()[i] =  cur_data[i];
+			uvs.get()[i] = cur_data[i];
 		}
 	}
 
@@ -292,45 +293,45 @@ public:
 				sum++;
 			}
 		}
-		
+
 		return sum;
 	}
-	
-	std::pair<int, int> getAnimationOffsets(int idx) const
+
+	std::pair<int32_t, int32_t> getAnimationOffsets(int32_t idx) const
 	{
-        return std::pair<int, int>(animPairsOffsetList.at(idx * 2), animPairsOffsetList.at(idx * 2 + 1));
+		return std::pair<int32_t, int32_t>(animPairsOffsetList.at(idx * 2), animPairsOffsetList.at(idx * 2 + 1));
 	}
-		
-	int getBaseOffset() const
+
+	int32_t getBaseOffset() const
 	{
 		return 0;
 	}
 
-	int getAnimPairsListOffset() const
+	int32_t getAnimPairsListOffset() const
 	{
 		return 1;
 	}
-	
-	int getBaseIndicesOffset() const
+
+	int32_t getBaseIndicesOffset() const
 	{
 		return getAnimPairsListOffset() + 1;
 	}
-	
-	int getBasePointsOffset() const
+
+	int32_t getBasePointsOffset() const
 	{
 		return getAnimPairsListOffset() + 2;
 	}
 
-	int getBaseUvsOffset() const
+	int32_t getBaseUvsOffset() const
 	{
 		return getAnimPairsListOffset() + 3;
 	}
-	
+
 	size_t getNumIndices() const
 	{
 		return fileData.at(getBaseIndicesOffset()).int_array_val.size();
 	}
-	
+
 	size_t getNumPoints() const
 	{
 		return fileData.at(getBasePointsOffset()).float_array_val.size();
@@ -340,66 +341,66 @@ public:
 	{
 		return fileData.at(getBaseUvsOffset()).float_array_val.size();
 	}
-  
-    std::shared_ptr<uint32_t> indices;
-    std::shared_ptr<float> uvs;
-    std::shared_ptr<float> points;
-    std::unordered_map<std::string, CreaturePackAnimClip> animClipMap;
-    
-    std::vector<mpMini::msg_mini_generic_data> fileData;
-    std::vector<std::string> headerList;
-    std::vector<int> animPairsOffsetList;
+
+	std::shared_ptr<uint32_t> indices;
+	std::shared_ptr<float> uvs;
+	std::shared_ptr<float> points;
+	std::unordered_map<std::string, CreaturePackAnimClip> animClipMap;
+
+	std::vector<mpMini::msg_mini_generic_data> fileData;
+	std::vector<std::string> headerList;
+	std::vector<int32_t> animPairsOffsetList;
 	std::vector<std::pair<uint32_t, uint32_t>> meshRegionsList;
 	float dMinX, dMinY, dMaxX, dMaxY;
-    
+
 protected:
-    void runDecoder(const std::vector<uint8_t>& byteArray)
-    {
+	void runDecoder(const std::vector<uint8_t>& byteArray)
+	{
 		mpMini::msg_mini newReader(byteArray);
-        fileData = newReader.msg_mini_get_generic_objects();
-        
-        headerList = fileData[getBaseOffset()].str_array_val;
+		fileData = newReader.msg_mini_get_generic_objects();
+
+		headerList = fileData[getBaseOffset()].str_array_val;
 		animPairsOffsetList = fileData[getAnimPairsListOffset()].int_array_val;
-		
+
 		// init basic points and topology structure
 		indices = std::shared_ptr<uint32_t>(new uint32_t[getNumIndices()], std::default_delete<uint32_t[]>());
 		points = std::shared_ptr<float>(new float[getNumPoints()], std::default_delete<float[]>());
 		uvs = std::shared_ptr<float>(new float[getNumUvs()], std::default_delete<float[]>());
-		
+
 		updateIndices(getBaseIndicesOffset());
 		updatePoints(getBasePointsOffset());
 		updateUVs(getBaseUvsOffset());
 
 		fillDeformRanges();
 		finalAllPointSamples();
-		
+
 		// init Animation Clip Map		
 		for (size_t i = 0; i < getAnimationNum(); i++)
 		{
 			const auto& curOffsetPair = getAnimationOffsets(i);
-			
+
 			auto animName = fileData[curOffsetPair.first].string_val;
-			auto k = curOffsetPair.first ;
+			auto k = curOffsetPair.first;
 			k++;
 			CreaturePackAnimClip newClip(k);
-				
-			while(k < curOffsetPair.second)
+
+			while (k < curOffsetPair.second)
 			{
-				int cur_time = fileData[k].float_val;
-				newClip.addTimeSample(cur_time, (int)k);
-					
+				int32_t cur_time = fileData[k].float_val;
+				newClip.addTimeSample(cur_time, (int32_t)k);
+
 				k += 4;
 			}
-				
+
 			newClip.finalTimeSamples();
-            animClipMap[animName] = newClip;
+			animClipMap[animName] = newClip;
 		}
 
-    }
+	}
 
 	std::string hasDeformCompress() const
 	{
-		for (int i = 0; i < (int)headerList.size(); i++)
+		for (int i = 0; i < static_cast<int>(headerList.size()); i++)
 		{
 			if (headerList[i] == "deform_comp1")
 			{
@@ -408,6 +409,10 @@ protected:
 			else if (headerList[i] == "deform_comp2")
 			{
 				return "deform_comp2";
+			}
+			else if (headerList[i] == "deform_comp1_1")
+			{
+				return "deform_comp1_1";
 			}
 		}
 
@@ -435,7 +440,7 @@ protected:
 			return;
 		}
 
-		for (int i = 0; i < (int)getAnimationNum(); i++)
+		for (int i = 0; i < static_cast<int>(getAnimationNum()); i++)
 		{
 			auto curOffsetPair = getAnimationOffsets(i);
 
@@ -445,21 +450,40 @@ protected:
 
 			while (k < curOffsetPair.second)
 			{
-				auto pts_raw_array = fileData[k + 1].int_array_val;
+				const auto& pts_raw_array = fileData[k + 1].int_array_val;
+				const auto& pts_raw_byte_array = fileData[k + 1].byte_array_val;
 				int raw_num = (int)pts_raw_array.size();
+
+				if (deformCompressType == "deform_comp2")
+				{
+					raw_num = (int)pts_raw_byte_array.size();
+				}
+				else if (deformCompressType == "deform_comp1_1")
+				{
+					raw_num = (int)pts_raw_byte_array.size() / 2;
+				}
 
 				std::vector<float> final_pts_array(raw_num);
 				for (int m = 0; m < raw_num; m++)
 				{
-					float bucketVal = (float)pts_raw_array[m];
+					float bucketVal = 0;
 					float numBuckets = 0.0f;
 					if (deformCompressType == "deform_comp1")
 					{
+						bucketVal = (float)pts_raw_array[m];
 						numBuckets = 65535.0f;
 					}
 					else if (deformCompressType == "deform_comp2")
 					{
+						bucketVal = (float)pts_raw_byte_array[m];
 						numBuckets = 255.0f;
+					}
+					else if (deformCompressType == "deform_comp1_1")
+					{
+						uint16_t raw_int = 0;
+						std::memcpy(&raw_int, &pts_raw_byte_array[m * 2], sizeof(uint16_t));
+						bucketVal = (float)raw_int;
+						numBuckets = 65535.0f;
 					}
 
 					float setVal = 0.0f;
@@ -478,6 +502,7 @@ protected:
 				}
 
 				fileData[k + 1].int_array_val.clear();
+				fileData[k + 1].byte_array_val.clear();
 				fileData[k + 1].float_array_val = final_pts_array;
 
 				k += 4;
@@ -538,7 +563,7 @@ protected:
 	}
 
 	std::vector<uint32_t>
-	regionsDFS(std::unordered_map<uint32_t, graphNode>& graph, int idx) const
+		regionsDFS(std::unordered_map<uint32_t, graphNode>& graph, int32_t idx) const
 	{
 		std::vector<uint32_t> retData;
 		if (graph[idx].visited)
@@ -571,7 +596,7 @@ protected:
 	}
 
 	std::vector<std::pair<uint32_t, uint32_t>>
-	findConnectedRegions() const
+		findConnectedRegions() const
 	{
 		std::vector<std::pair<uint32_t, uint32_t>> regionsList;
 		std::unordered_map<uint32_t, graphNode> graph = formUndirectedGraph();
@@ -599,65 +624,65 @@ protected:
 // Base Player class that target renderers use
 class CreaturePackPlayer {
 public:
-    CreaturePackPlayer(CreaturePackLoader& dataIn)
-        : data(dataIn)
-    {
-        createRuntimeMap();
+	CreaturePackPlayer(CreaturePackLoader& dataIn)
+		: data(dataIn)
+	{
+		createRuntimeMap();
 		isPlaying = true;
 		isLooping = true;
 		animBlendFactor = 0;
 		animBlendDelta = 0;
-				
+
 		// create data buffers
-        renders_base_size = data.getNumPoints() / 2;
+		renders_base_size = data.getNumPoints() / 2;
 		render_points = std::shared_ptr<float>(new float[getRenderPointsLength()], std::default_delete<float[]>());
 		render_uvs = std::shared_ptr<float>(new float[getRenderUVsLength()], std::default_delete<float[]>());
 		render_colors = std::shared_ptr<uint8_t>(new uint8_t[getRenderColorsLength()], std::default_delete<uint8_t[]>());
-		
+
 		for (size_t i = 0; i < (size_t)getRenderColorsLength(); i++)
 		{
 			render_colors.get()[i] = 255;
 		}
-		
+
 		for (size_t i = 0; i < (size_t)getRenderUVsLength(); i++)
 		{
 			render_uvs.get()[i] = data.uvs.get()[i];
-		}       
-    }
-    
-    size_t getRenderColorsLength() const {
-        return (size_t)renders_base_size * 4; 
-    }
+		}
+	}
 
-    size_t getRenderPointsLength() const {
-        return (size_t)renders_base_size * 3; 
-    }
+	size_t getRenderColorsLength() const {
+		return (size_t)renders_base_size * 4;
+	}
 
-    size_t getRenderUVsLength() const {
-        return (size_t)renders_base_size * 2; 
-    }
-    
+	size_t getRenderPointsLength() const {
+		return (size_t)renders_base_size * 3;
+	}
+
+	size_t getRenderUVsLength() const {
+		return (size_t)renders_base_size * 2;
+	}
+
 	void createRuntimeMap()
 	{
-        runTimeMap.clear();
+		runTimeMap.clear();
 		bool firstSet = false;
-        for(auto& curData : data.animClipMap)
+		for (auto& curData : data.animClipMap)
 		{
-            auto animName = curData.first;
-            
+			auto animName = curData.first;
+
 			if (firstSet == false)
 			{
 				firstSet = true;
 				activeAnimationName = animName;
 				prevAnimationName = animName;
 			}
-			
+
 			auto animClip = data.animClipMap.at(animName);
-            runTimeMap[animName] = animClip.startTime;
+			runTimeMap[animName] = animClip.startTime;
 		}
-		
+
 	}
-	
+
 	// Sets an active animation without blending
 	bool setActiveAnimation(const std::string& nameIn)
 	{
@@ -665,14 +690,14 @@ public:
 		{
 			activeAnimationName = nameIn;
 			prevAnimationName = nameIn;
-            runTimeMap[activeAnimationName] = data.animClipMap[activeAnimationName].startTime;
-            
-            return true;
+			runTimeMap[activeAnimationName] = data.animClipMap[activeAnimationName].startTime;
+
+			return true;
 		}
-        
-        return false;
+
+		return false;
 	}
-	
+
 	// Smoothly blends to a target animation
 	void blendToAnimation(const std::string& nameIn, float blendDelta)
 	{
@@ -687,20 +712,20 @@ public:
 	}
 
 	void setRunTime(float timeIn)
-	{	
+	{
 		runTimeMap[activeAnimationName] = data.animClipMap[activeAnimationName].correctTime(timeIn, isLooping);
 	}
-	
+
 	float getRunTime() const
 	{
 		return runTimeMap.at(activeAnimationName);
 	}
-	
+
 	// Steps the animation by a delta time
 	void stepTime(float deltaTime)
 	{
 		setRunTime(getRunTime() + deltaTime);
-		
+
 		// update blending
 		animBlendFactor += animBlendDelta;
 		if (animBlendFactor > 1)
@@ -708,106 +733,106 @@ public:
 			animBlendFactor = 1;
 		}
 	}
-	
+
 	float interpScalar(float val1, float val2, float fraction)
 	{
 		return ((1.0 - fraction) * val1) + (fraction * val2);
 	}
-	
+
 	// Call this before a render to update the render data
-	void syncRenderData() { 
-	{
-		// Points blending
-		if (activeAnimationName == prevAnimationName)
+	void syncRenderData() {
 		{
-			auto& cur_clip = data.animClipMap[activeAnimationName];
-			// no blending
-			auto cur_clip_info = cur_clip.sampleTime(getRunTime());
-			CreatureTimeSample& low_data = cur_clip.timeSamplesMap[cur_clip_info.firstSampleIdx];
-			CreatureTimeSample& high_data = cur_clip.timeSamplesMap[cur_clip_info.secondSampleIdx];
-			
-			std::vector<float>& anim_low_points = data.fileData[low_data.getAnimPointsOffset()].float_array_val;
-			std::vector<float>& anim_high_points = data.fileData[high_data.getAnimPointsOffset()].float_array_val;
-			
-			for (auto i = 0; i < renders_base_size; i++)
+			// Points blending
+			if (activeAnimationName == prevAnimationName)
 			{
-                for(auto j = 0; j < 2; j++)
-                {
-                    auto low_val = anim_low_points[i * 2 + j];
-                    auto high_val = anim_high_points[i * 2 + j];
-                    render_points.get()[i * 3 + j] = interpScalar(low_val, high_val, cur_clip_info.sampleFraction);                    
-                }
-                
-                render_points.get()[i * 3 + 2] = 0.0f;
-			}
-		}
-		else {
-			// blending
-			
-			// Active Clip
-			auto& active_clip =  data.animClipMap[activeAnimationName];
-			
-			auto active_clip_info = active_clip.sampleTime(getRunTime());
-			CreatureTimeSample& active_low_data = active_clip.timeSamplesMap[active_clip_info.firstSampleIdx];
-			CreatureTimeSample& active_high_data = active_clip.timeSamplesMap[active_clip_info.secondSampleIdx];
-			
-			std::vector<float>& active_anim_low_points = data.fileData[active_low_data.getAnimPointsOffset()].float_array_val;
-			std::vector<float>& active_anim_high_points = data.fileData[active_high_data.getAnimPointsOffset()].float_array_val;
-			
-			// Previous Clip
-			auto& prev_clip =  data.animClipMap[prevAnimationName];
-			
-			auto prev_clip_info = prev_clip.sampleTime(getRunTime());
-			CreatureTimeSample& prev_low_data = prev_clip.timeSamplesMap[prev_clip_info.firstSampleIdx];
-			CreatureTimeSample& prev_high_data = prev_clip.timeSamplesMap[prev_clip_info.secondSampleIdx];
-			
-			std::vector<float>& prev_anim_low_points = data.fileData[prev_low_data.getAnimPointsOffset()].float_array_val;
-			std::vector<float>& prev_anim_high_points = data.fileData[prev_high_data.getAnimPointsOffset()].float_array_val;
+				auto& cur_clip = data.animClipMap[activeAnimationName];
+				// no blending
+				auto cur_clip_info = cur_clip.sampleTime(getRunTime());
+				CreatureTimeSample& low_data = cur_clip.timeSamplesMap[cur_clip_info.firstSampleIdx];
+				CreatureTimeSample& high_data = cur_clip.timeSamplesMap[cur_clip_info.secondSampleIdx];
 
-			for (auto i = 0; i < renders_base_size; i++)
-			{
-                for(auto j = 0; j < 2; j++)
-                {
-                    auto active_low_val = active_anim_low_points[i * 2 + j];
-                    auto active_high_val = active_anim_high_points[i * 2 + j];
-                    auto active_val =  interpScalar(active_low_val, active_high_val, active_clip_info.sampleFraction);
+				std::vector<float>& anim_low_points = data.fileData[low_data.getAnimPointsOffset()].float_array_val;
+				std::vector<float>& anim_high_points = data.fileData[high_data.getAnimPointsOffset()].float_array_val;
 
-                    auto prev_low_val = prev_anim_low_points[i * 2 + j];
-                    auto prev_high_val = prev_anim_high_points[i * 2 + j];
-                    auto prev_val =  interpScalar(prev_low_val, prev_high_val, prev_clip_info.sampleFraction);
-
-                    render_points.get()[i * 3 + j] = interpScalar(prev_val, active_val, animBlendFactor);
-                }
-                
-                render_points.get()[i * 3 + 2] = 0.0f;
-			}
-		}
-		
-		// Colors
-		{
-			auto& cur_clip =  data.animClipMap[activeAnimationName];
-			// no blending
-			auto cur_clip_info = cur_clip.sampleTime(getRunTime());
-			CreatureTimeSample& low_data = cur_clip.timeSamplesMap[cur_clip_info.firstSampleIdx];
-			CreatureTimeSample& high_data = cur_clip.timeSamplesMap[cur_clip_info.secondSampleIdx];
-			
-			std::vector<int32_t>& anim_low_colors = data.fileData[low_data.getAnimColorsOffset()].int_array_val;
-			std::vector<int32_t>& anim_high_colors = data.fileData[high_data.getAnimColorsOffset()].int_array_val;
-			
-			if((anim_low_colors.size() == getRenderColorsLength())
-				&& (anim_high_colors.size() == getRenderColorsLength())) {
-				for (size_t i = 0; i < (size_t)getRenderColorsLength(); i++)
+				for (auto i = 0; i < renders_base_size; i++)
 				{
-				    float low_val = (float)anim_low_colors[i];
-					float high_val = (float)anim_high_colors[i];
-					render_colors.get()[i] = (uint8_t)interpScalar(low_val, high_val, cur_clip_info.sampleFraction);
+					for (auto j = 0; j < 2; j++)
+					{
+						auto low_val = anim_low_points[i * 2 + j];
+						auto high_val = anim_high_points[i * 2 + j];
+						render_points.get()[i * 3 + j] = interpScalar(low_val, high_val, cur_clip_info.sampleFraction);
+					}
+
+					render_points.get()[i * 3 + 2] = 0.0f;
 				}
 			}
-		}
-	
+			else {
+				// blending
+
+				// Active Clip
+				auto& active_clip = data.animClipMap[activeAnimationName];
+
+				auto active_clip_info = active_clip.sampleTime(getRunTime());
+				CreatureTimeSample& active_low_data = active_clip.timeSamplesMap[active_clip_info.firstSampleIdx];
+				CreatureTimeSample& active_high_data = active_clip.timeSamplesMap[active_clip_info.secondSampleIdx];
+
+				std::vector<float>& active_anim_low_points = data.fileData[active_low_data.getAnimPointsOffset()].float_array_val;
+				std::vector<float>& active_anim_high_points = data.fileData[active_high_data.getAnimPointsOffset()].float_array_val;
+
+				// Previous Clip
+				auto& prev_clip = data.animClipMap[prevAnimationName];
+
+				auto prev_clip_info = prev_clip.sampleTime(getRunTime());
+				CreatureTimeSample& prev_low_data = prev_clip.timeSamplesMap[prev_clip_info.firstSampleIdx];
+				CreatureTimeSample& prev_high_data = prev_clip.timeSamplesMap[prev_clip_info.secondSampleIdx];
+
+				std::vector<float>& prev_anim_low_points = data.fileData[prev_low_data.getAnimPointsOffset()].float_array_val;
+				std::vector<float>& prev_anim_high_points = data.fileData[prev_high_data.getAnimPointsOffset()].float_array_val;
+
+				for (auto i = 0; i < renders_base_size; i++)
+				{
+					for (auto j = 0; j < 2; j++)
+					{
+						auto active_low_val = active_anim_low_points[i * 2 + j];
+						auto active_high_val = active_anim_high_points[i * 2 + j];
+						auto active_val = interpScalar(active_low_val, active_high_val, active_clip_info.sampleFraction);
+
+						auto prev_low_val = prev_anim_low_points[i * 2 + j];
+						auto prev_high_val = prev_anim_high_points[i * 2 + j];
+						auto prev_val = interpScalar(prev_low_val, prev_high_val, prev_clip_info.sampleFraction);
+
+						render_points.get()[i * 3 + j] = interpScalar(prev_val, active_val, animBlendFactor);
+					}
+
+					render_points.get()[i * 3 + 2] = 0.0f;
+				}
+			}
+
+			// Colors
+			{
+				auto& cur_clip = data.animClipMap[activeAnimationName];
+				// no blending
+				auto cur_clip_info = cur_clip.sampleTime(getRunTime());
+				CreatureTimeSample& low_data = cur_clip.timeSamplesMap[cur_clip_info.firstSampleIdx];
+				CreatureTimeSample& high_data = cur_clip.timeSamplesMap[cur_clip_info.secondSampleIdx];
+
+				std::vector<int32_t>& anim_low_colors = data.fileData[low_data.getAnimColorsOffset()].int_array_val;
+				std::vector<int32_t>& anim_high_colors = data.fileData[high_data.getAnimColorsOffset()].int_array_val;
+
+				if ((anim_low_colors.size() == getRenderColorsLength())
+					&& (anim_high_colors.size() == getRenderColorsLength())) {
+					for (size_t i = 0; i < (size_t)getRenderColorsLength(); i++)
+					{
+						float low_val = (float)anim_low_colors[i];
+						float high_val = (float)anim_high_colors[i];
+						render_colors.get()[i] = (uint8_t)interpScalar(low_val, high_val, cur_clip_info.sampleFraction);
+					}
+				}
+			}
+
 			// UVs
 			{
-				auto& cur_clip =  data.animClipMap[activeAnimationName];
+				auto& cur_clip = data.animClipMap[activeAnimationName];
 				auto cur_clip_info = cur_clip.sampleTime(getRunTime());
 				CreatureTimeSample& low_data = cur_clip.timeSamplesMap[cur_clip_info.firstSampleIdx];
 				std::vector<float>& anim_uvs = data.fileData[low_data.getAnimUvsOffset()].float_array_val;
@@ -818,20 +843,20 @@ public:
 						render_uvs.get()[i] = anim_uvs[i];
 					}
 				}
-			}		
+			}
 		}
 	}
-    
 
-    CreaturePackLoader& data;
 
-    std::shared_ptr<float> render_uvs;
-    std::shared_ptr<uint8_t> render_colors;
-    std::shared_ptr<float> render_points;
-	int renders_base_size;
-    std::unordered_map<std::string, float> runTimeMap;
-    bool isPlaying, isLooping;
-    
-    std::string activeAnimationName, prevAnimationName;
-    float animBlendFactor, animBlendDelta;
+	CreaturePackLoader& data;
+
+	std::shared_ptr<float> render_uvs;
+	std::shared_ptr<uint8_t> render_colors;
+	std::shared_ptr<float> render_points;
+	int32_t renders_base_size;
+	std::unordered_map<std::string, float> runTimeMap;
+	bool isPlaying, isLooping;
+
+	std::string activeAnimationName, prevAnimationName;
+	float animBlendFactor, animBlendDelta;
 };
