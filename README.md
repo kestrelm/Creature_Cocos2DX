@@ -3,9 +3,9 @@
 For more information on how to use the runtimes, please head over to this [site](http://www.kestrelmoon.com/creaturedocs/Game_Engine_Runtimes_And_Integration/Runtimes_Introduction.html)
 
 ## Overview
-This document describes how to use the Cocos2d-x runtimes. The language of the runtimes is in C++. There are 2 types of formats to read in, the JSON/FlatBuffers fully featured format or the much more performant + compact CreaturePack format.
+This document describes how to use the Cocos2d-x runtimes. The language of the runtimes is in C++. There are 2 types of formats to read in, the JSON fully featured format or the much more performant + compact CreaturePack format.
 
-## JSON/FlatBuffers
+## JSON
 
 ### Libaries Needed to compile
 Along with the core runtime files, the following libraries are also included:
