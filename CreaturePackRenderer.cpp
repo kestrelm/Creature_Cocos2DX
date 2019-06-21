@@ -41,7 +41,7 @@
 
 namespace CreaturePackRenderer {
     Renderer *
-    Renderer::create(CreaturePackLoader * pack_loader,
+    Renderer::create(std::shared_ptr<CreaturePackLoader> pack_loader,
                      cocos2d::Texture2D * texture_in)
     {
         Renderer * new_node = new Renderer(pack_loader, texture_in);
@@ -50,11 +50,12 @@ namespace CreaturePackRenderer {
         return new_node;
     }
     
-    Renderer::Renderer(CreaturePackLoader * pack_loader,
+    Renderer::Renderer(std::shared_ptr<CreaturePackLoader> pack_loader,
                        cocos2d::Texture2D * texture_in)
     : texture(texture_in), debug_draw(false)
     {
-		playerObj = std::shared_ptr<CreaturePackPlayer>(new CreaturePackPlayer(*pack_loader));
+		packLoader = pack_loader;
+		playerObj = std::shared_ptr<CreaturePackPlayer>(new CreaturePackPlayer(*packLoader));
 		setPlaybackSpeed(30.0f);
         setGLProgram(cocos2d::ShaderCache::getInstance()->getGLProgram(cocos2d::GLProgram::SHADER_NAME_POSITION_TEXTURE_COLOR));
         scheduleUpdate();

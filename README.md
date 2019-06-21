@@ -345,12 +345,10 @@ Next, fill in the code below to use the **CreaturePack** runtime:
 	auto packFilename = CCFileUtils::getInstance()->fullPathForFilename("testPack.creature_pack");
 	packLoader = CreaturePackRenderer::createPackLoader(packFilename);
 
-The important thing to note here is the **CreaturePackLoader** object MUST BE around for the lifetime of the **CreaturePackRenderer**. Make it a member of your game class ( or you can also make it static which ever way you choose ).
-
 	// Now create the renderer for CreaturePack
 	auto packRenderer =
 		CreaturePackRenderer::Renderer::create(
-			packLoader.get(),
+			packLoader,
 			CCTextureCache::getInstance()->addImage("testPack.png"));
 	packRenderer->setScale(120.0f);
 	packRenderer->setPosition(Vec2(visibleSize.width / 2 + origin.x, visibleSize.height / 2 + origin.y));

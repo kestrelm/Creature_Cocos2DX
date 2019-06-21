@@ -141,13 +141,12 @@ bool HelloWorld::init()
 	{
 		// First, create the CreaturePackLoader
 		auto packFilename = CCFileUtils::getInstance()->fullPathForFilename("fox.creature_pack");
-		// Take note, the CreaturePackLoader has to exist for the lifetime of your renderer object! Otherwise the data in the
-		// CreaturePackRenderer will be invalid
-		static std::shared_ptr<CreaturePackLoader> packLoader = CreaturePackRenderer::createPackLoader(packFilename);
+		// Create the CreaturePackLoader that holds the data
+		std::shared_ptr<CreaturePackLoader> packLoader = CreaturePackRenderer::createPackLoader(packFilename);
 		// Renderer
 		auto packRenderer =
 			CreaturePackRenderer::Renderer::create(
-				packLoader.get(),
+				packLoader,
 				CCTextureCache::getInstance()->addImage("fox.png"));
 		packRenderer->setScale(5.0f);
 		packRenderer->setPosition(Vec2(visibleSize.width / 2 + origin.x, visibleSize.height / 4 + origin.y));

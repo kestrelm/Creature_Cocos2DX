@@ -47,7 +47,7 @@ namespace CreaturePackRenderer {
 
     class Renderer : public cocos2d::Node, public cocos2d::BlendProtocol {
     public:
-        static Renderer * create(CreaturePackLoader * pack_loader,
+        static Renderer * create(std::shared_ptr<CreaturePackLoader> pack_loader,
                                  cocos2d::Texture2D * texture_in);
         
         virtual void update(float delta);
@@ -77,11 +77,12 @@ namespace CreaturePackRenderer {
 		}
         
     protected:
-        Renderer(CreaturePackLoader * pack_loader,
+        Renderer(std::shared_ptr<CreaturePackLoader> pack_loader,
                  cocos2d::Texture2D * texture_in);
         
         virtual ~Renderer();
         
+		std::shared_ptr<CreaturePackLoader> packLoader;
         std::shared_ptr<CreaturePackPlayer> playerObj;
         cocos2d::CustomCommand _drawCommand;
         cocos2d::BlendFunc _blendFunc;
